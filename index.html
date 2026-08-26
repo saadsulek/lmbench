@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lmbench — local LLM benchmark for LM Studio</title>
+<meta name="description" content="A live benchmark harness for local LLMs running in LM Studio. Measure throughput, latency, and response quality on your own machine.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23111111'/%3E%3Cpath d='M10 20a6 6 0 1 1 12 0' stroke='%23F7F6F3' stroke-width='2.5' fill='none' stroke-linecap='round'/%3E%3Cpath d='M16 20l4-4' stroke='%23F7F6F3' stroke-width='2.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=switzer@300,400,500,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="ambient" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="brand" href="#top">
+      <svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="7.5" cy="8.5" r="5"/>
+        <path d="M7.5 8.5l2.5-2"/>
+      </svg>
+      <span class="brand-name">lmbench</span>
+      <span class="brand-sub">local harness</span>
+    </a>
+    <nav class="nav-links" aria-label="Section navigation">
+      <a href="#harness">Harness</a>
+      <a href="#bench">Live run</a>
+      <a href="#method">Method</a>
+      <a href="#history">Archive</a>
+    </nav>
+    <div class="nav-right">
+      <button id="btn-theme" class="btn-theme" type="button" aria-label="Toggle color theme" title="Toggle dark mode">
+        <svg class="icon-sun" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" aria-hidden="true">
+          <circle cx="7.5" cy="7.5" r="2.6"/>
+          <path d="M7.5 1.5v2M7.5 11.5v2M1.5 7.5h2M11.5 7.5h2M3.2 3.2l1.4 1.4M10.4 10.4l1.4 1.4M11.8 3.2l-1.4 1.4M4.6 10.4l-1.4 1.4"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13 9.4A5.9 5.9 0 1 1 5.6 2a4.8 4.8 0 0 0 7.4 7.4z"/>
+        </svg>
+      </button>
+      <span class="nav-status" id="nav-status">
+        <span class="status-dot" id="nav-dot"></span>
+        <span id="nav-status-text">Checking server</span>
+      </span>
+      <a class="btn btn-primary btn-sm" href="#bench">Run benchmark</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="container hero-inner">
+      <p class="eyebrow reveal" style="--i:0"><span class="pulse-dot"></span>Local inference lab · LM Studio</p>
+      <h1 class="serif hero-title reveal" style="--i:1">Benchmark the models running on <em>your</em> machine.</h1>
+      <p class="hero-lede reveal" style="--i:2">A live harness for LM Studio&rsquo;s local server. Load a few models, pin a set of workloads, and get measured throughput, latency, and quality &mdash; ranked on the hardware in front of you. Nothing is uploaded, nothing leaves localhost.</p>
+      <div class="hero-actions reveal" style="--i:3">
+        <a class="btn btn-primary" href="#bench">Run a benchmark</a>
+        <a class="btn btn-ghost" href="#method">Read the methodology</a>
+      </div>
+      <p class="hero-note mono reveal" style="--i:3">no cloud &nbsp;·&nbsp; no uploads &nbsp;·&nbsp; localhost:1234</p>
+
+      <figure class="window reveal" style="--i:4">
+        <div class="window-bar">
+          <span class="traffic"></span><span class="traffic"></span><span class="traffic"></span>
+          <span class="window-title mono">benchmark archive &mdash; on this machine</span>
+        </div>
+        <div class="window-body">
+          <div class="win-meta mono">
+            <span id="win-summary">benchmark archive &middot; 0 models</span>
+            <span class="win-sort" role="group" aria-label="Sort archived models">
+              <button class="win-sort-btn active" type="button" data-sort="speed">speed</button>
+              <button class="win-sort-btn" type="button" data-sort="recent">recent</button>
+            </span>
+          </div>
+          <table class="win-table" id="win-table" hidden>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th class="resizable" data-col="model">
+                  Model
+                  <span class="resize-handle" aria-label="Resize model column"></span>
+                </th>
+                <th class="num">tok/s</th>
+                <th class="num">time</th>
+                <th>Quality</th>
+                <th class="num"></th>
+              </tr>
+            </thead>
+            <tbody id="win-rows"></tbody>
+          </table>
+          <p class="win-empty mono" id="win-empty">No archived runs yet &mdash; run a benchmark and the models will be kept here.</p>
+          <div class="win-foot">
+            <button id="win-expand" class="btn-mini" type="button" hidden>Show more</button>
+            <p class="win-caption mono" id="win-caption"></p>
+          </div>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="container stats-grid">
+      <div class="stat-cell reveal" style="--i:0">
+        <span class="stat-num serif">3</span>
+        <span class="stat-label">workload classes</span>
+        <span class="stat-sub">code · reasoning · prose</span>
+      </div>
+      <div class="stat-cell reveal" style="--i:1">
+        <span class="stat-num serif">4</span>
+        <span class="stat-label">metrics per run</span>
+        <span class="stat-sub">tokens · time · tok/s · quality</span>
+      </div>
+      <div class="stat-cell reveal" style="--i:2">
+        <span class="stat-num serif">0</span>
+        <span class="stat-label">bytes uploaded</span>
+        <span class="stat-sub">localhost only</span>
+      </div>
+      <div class="stat-cell reveal" style="--i:3">
+        <span class="stat-num serif">1</span>
+        <span class="stat-label">machine involved</span>
+        <span class="stat-sub">the one in front of you</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="harness" id="harness">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">Inside the harness</p>
+        <h2 class="serif">Built to measure what your hardware actually delivers.</h2>
+        <p class="section-lede">Six design choices keep the numbers honest. No synthetic scoring, no remote backend, no calibration to look good.</p>
+      </div>
+
+      <div class="bento">
+        <article class="bento-card reveal" style="--i:0" data-span="7">
+          <div class="icon-chip"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3.5h7M4 8h7M6.5 8v2.5M8.5 8v2.5"/><circle cx="7.5" cy="12.5" r="1"/></svg></div>
+          <h3>Direct connection</h3>
+          <p>The page talks to the LM Studio HTTP server on this machine. Loaded models are discovered through the standard OpenAI-compatible endpoint. There is no relay, no tunnel, and no account.</p>
+          <p class="mono card-foot">GET /v1/models</p>
+        </article>
+
+        <article class="bento-card reveal" style="--i:1" data-span="5">
+          <div class="icon-chip"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2.5v10M7.5 2.5v10M12 2.5v10"/><path d="M1 5.5h4M5.5 9.5h4M10 3.5h4"/></svg></div>
+          <h3>Deliberate defaults</h3>
+          <p>Sampling is pinned so models are compared under the same conditions: temperature 0.2, top-p 0.9, and no system prompt unless the workload requires one. Differences come from the model, not the settings.</p>
+          <p class="mono card-foot">temp 0.2 · top_p 0.9</p>
+        </article>
+
+        <article class="bento-card reveal" style="--i:2" data-span="4">
+          <div class="icon-chip"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12.5h10M4.5 12.5V8M7.5 12.5V4.5M10.5 12.5V6.5"/></svg></div>
+          <h3>Token accounting</h3>
+          <p>Throughput uses the exact completion-token count divided by decode time only &mdash; prompt processing (TTFT) is measured separately.</p>
+          <p class="mono card-foot">decode tok/s · TTFT split out</p>
+        </article>
+
+        <article class="bento-card reveal" style="--i:3" data-span="4">
+          <div class="icon-chip"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 2v11M3 6h9M3 9.5h9M3 13h9"/></svg></div>
+          <h3>Three workload classes</h3>
+          <p>Code generation, constrained reasoning, and long-form writing. Each stresses a different bottleneck: decode speed, planning depth, and context discipline.</p>
+          <p class="mono card-foot">code · reason · prose</p>
+        </article>
+
+        <article class="bento-card reveal" style="--i:4" data-span="4">
+          <div class="icon-chip"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 9.5h3L7 5.5l2.5 5h3M4 12.5h7"/></svg></div>
+          <h3>Ranks, not ratings</h3>
+          <p>Models are ordered by measured tokens per second. Quality is reported as a badge alongside, so a fast model that misses the task is easy to spot.</p>
+          <p class="mono card-foot">sort: mean tok/s</p>
+        </article>
+
+        <article class="bento-card reveal" style="--i:5" data-span="7">
+          <div class="icon-chip"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5.5"/><path d="M7.5 4.5v3l2 1.5"/></svg></div>
+          <h3>History stays on this machine</h3>
+          <p>Completed runs are kept in the browser&rsquo;s local storage. Reload the page, swap a quant, load a new model, and compare against the last run without a spreadsheet.</p>
+          <p class="mono card-foot">localStorage · archived on finish</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="bench" id="bench">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">The live run</p>
+        <h2 class="serif">Choose models, choose workloads, measure what&rsquo;s loaded.</h2>
+        <p class="section-lede">Requires the LM Studio local server to be running (Settings &rarr; Server &rarr; Start Server). Models already loaded in LM Studio appear below.</p>
+      </div>
+
+      <div class="card bench-controls reveal">
+        <div class="ctrl-row">
+          <div class="field grow">
+            <label for="endpoint">Server endpoint</label>
+            <div class="field-inline">
+              <input id="endpoint" type="text" value="http://localhost:1234" spellcheck="false" autocomplete="off">
+              <button id="btn-check" class="btn btn-ghost" type="button">Check</button>
+            </div>
+            <p class="field-note" id="server-status">Checking server&hellip;</p>
+          </div>
+        </div>
+
+        <div class="ctrl-row split">
+          <div class="field">
+            <div class="field-head">
+              <label>Loaded models</label>
+              <button id="btn-model-toggle" class="btn-mini" type="button" disabled>Select all</button>
+            </div>
+            <div class="checklist" id="model-list"></div>
+            <p class="field-note" id="model-empty" hidden>No models found. Load one in LM Studio, then check the server again.</p>
+          </div>
+          <div class="field">
+            <label>Workloads</label>
+            <div class="checklist" id="task-list"></div>
+          </div>
+        </div>
+
+        <div class="ctrl-row split2">
+          <div class="field">
+            <label for="repeats">Repeats per cell</label>
+            <input id="repeats" type="number" min="1" max="5" value="1">
+          </div>
+          <div class="field">
+            <label for="max-tokens">Max tokens</label>
+            <select id="max-tokens">
+              <option value="256">256</option>
+              <option value="512">512</option>
+              <option value="1024" selected>1024</option>
+              <option value="2048">2048</option>
+              <option value="4096">4096</option>
+              <option value="8192">8192</option>
+              <option value="16384">16,384</option>
+              <option value="32768">32,768</option>
+              <option value="65536">65,536</option>
+              <option value="131072">131,072</option>
+              <option value="262144">262,144</option>
+              <option value="524288">524,288</option>
+              <option value="1000000">1,000,000</option>
+            </select>
+          </div>
+          <div class="field actions">
+            <button id="btn-run" class="btn btn-primary" type="button">Run benchmark</button>
+            <button id="btn-stop" class="btn btn-ghost" type="button" hidden>Stop</button>
+          </div>
+        </div>
+
+        <div class="progress-wrap" id="progress-wrap" hidden>
+          <div class="progress"><span id="progress-bar"></span></div>
+          <p class="field-note mono" id="progress-text"></p>
+        </div>
+      </div>
+
+      <div class="card chart-card reveal">
+        <div class="chart-head">
+          <span class="mono">live throughput</span>
+          <span class="field-note mono" id="chart-state">idle &mdash; waiting for a run</span>
+        </div>
+        <div class="chart-body">
+          <div class="chart-readout">
+            <span class="chart-value mono" id="chart-value">0.0</span>
+            <span class="chart-unit mono">tok/s</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart" aria-label="Live token throughput chart"></canvas>
+          </div>
+        </div>
+        <div class="chart-legend mono">
+          <span><i class="legend-dot legend-instant"></i>instant</span>
+          <span><i class="legend-dot legend-roll"></i>rolling 2s</span>
+          <span class="chart-note">tokens estimated during the stream, exact at completion</span>
+        </div>
+      </div>
+
+      <div class="card log-card reveal">
+        <div class="log-head">
+          <span class="mono">run log</span>
+          <span class="field-note mono" id="log-count">idle</span>
+        </div>
+        <div class="log mono" id="log"></div>
+      </div>
+
+      <section class="results" id="results" hidden>
+        <h3 class="serif results-title">Summary</h3>
+        <div class="summary-grid">
+          <div class="stat card reveal">
+            <span class="stat-label">Fastest model</span>
+            <span class="stat-value serif" id="stat-fast">&mdash;</span>
+            <span class="field-note mono" id="stat-fast-sub"></span>
+          </div>
+          <div class="stat card reveal" style="--i:1">
+            <span class="stat-label">Top quality</span>
+            <span class="stat-value serif" id="stat-quality">&mdash;</span>
+            <span class="field-note mono" id="stat-quality-sub"></span>
+          </div>
+          <div class="stat card reveal" style="--i:2">
+            <span class="stat-label">Cells run</span>
+            <span class="stat-value serif" id="stat-cells">&mdash;</span>
+            <span class="field-note mono" id="stat-cells-sub"></span>
+          </div>
+        </div>
+
+        <h3 class="serif results-title">Leaderboard</h3>
+        <div class="table-wrap card reveal">
+          <table id="board">
+            <thead>
+              <tr><th>Rank</th><th>Model</th><th class="num">Mean tok/s</th><th class="num">Best quality</th><th class="num">Runs</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <h3 class="serif results-title">Every cell</h3>
+        <div class="table-wrap card reveal">
+          <table id="runtable">
+            <thead>
+               <tr><th>Model</th><th>Workload</th><th class="num">Tokens</th><th class="num">TTFT</th><th class="num">Total</th><th class="num">tok/s (decode)</th><th>Quality</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="results-actions" style="margin-top: 1.5rem; text-align: center;">
+          <button id="btn-download" class="btn btn-ghost" type="button" hidden>Download results</button>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section class="method" id="method">
+    <div class="container method-grid">
+      <div class="section-head reveal">
+        <p class="eyebrow">Methodology</p>
+        <h2 class="serif">The short version of how the numbers are made.</h2>
+        <p class="section-lede">Five questions, answered plainly. If a number looks wrong, start here before blaming the model.</p>
+      </div>
+
+      <div class="accordions reveal" style="--i:1">
+        <details class="acc">
+          <summary>How is throughput measured?</summary>
+          <p>Tokens per second is the completion-token count divided by wall-clock time, timed from the request leaving this page to the full response arriving. When a workload runs more than one repeat, the cells are averaged before ranking.</p>
+        </details>
+        <details class="acc">
+          <summary>Why do the numbers move between runs?</summary>
+          <p>Local inference is noisy. Thermal throttling, memory-bandwidth contention, and background processes all shift decode speed. Run several repeats and compare averages, not single spikes.</p>
+        </details>
+        <details class="acc">
+          <summary>How is quality scored?</summary>
+          <p>Each workload ships with a lightweight rubric checked against the response text: code fences present, the numeric answer extracted, a word-count band, or valid JSON. It is a coarse gate, not a judge.</p>
+        </details>
+        <details class="acc">
+          <summary>What about context length?</summary>
+          <p>Context is reported next to each model when the server exposes it. The harness never pads the prompt; the longest workload stays well under 2k tokens so decode speed remains the story.</p>
+        </details>
+        <details class="acc">
+          <summary>Why are sampling defaults pinned?</summary>
+          <p>Temperature and top-p are locked per workload so differences in output reflect the model. Change them if you like &mdash; the run header records exactly what was used.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="history" id="history">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">Archive</p>
+        <h2 class="serif">Previous runs, kept on this machine.</h2>
+        <p class="section-lede">Every finished run is written to local storage. Compare a new quant against last week without copying anything out.</p>
+      </div>
+      <div class="history-list reveal" id="history-list"></div>
+      <p class="field-note" id="history-empty" hidden>No archived runs yet. Finish a benchmark and it will appear here.</p>
+      <button class="btn btn-ghost reveal" id="btn-clear" type="button" hidden>Clear history</button>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <span class="brand-name">lmbench</span>
+        <span class="footer-note">A local benchmark harness for LM Studio. Built for the models you already have.</span>
+      </div>
+      <div class="footer-hint">
+        <span class="mono">Run again <kbd>R</kbd></span>
+        <span class="mono">Stop <kbd>Esc</kbd></span>
+      </div>
+      <div class="footer-meta mono">
+        <span>localhost only</span>
+        <span>no telemetry</span>
+        <span>&copy; 2026</span>
+      </div>
+    </div>
+  </footer>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
